@@ -350,65 +350,148 @@ outputs.tf → app_url, db_endpoint, alb_dns
 | `count = 2` | Subnets | Creates multiple resources with one block |
 
 This is the exact architecture the JoinDevOps course teaches for real-world AWS expense project deployment — and explaining each of these decisions confidently will make you stand out in DevOps interviews.
-<span style="display:none">[^1][^10][^11][^12][^13][^14][^15][^16][^17][^18][^19][^2][^20][^21][^22][^23][^24][^25][^26][^27][^28][^29][^3][^4][^5][^6][^7][^8][^9]</span>
 
-<div align="center">⁂</div>
 
-[^1]: https://github.com/Unique-AG/terraform-modules
+Here’s a **practical example** of using `for_each` in Terraform to create multiple subnets, and how to reference the VPC ID from a module.
 
-[^2]: https://github.com/alfonsof/terraform-aws-examples
+---
 
-[^3]: https://github.com/infracost/infracost-gh-action/issues/16
+## Using `for_each` with VPC ID – Real Example
 
-[^4]: https://skundunotes.com/2023/03/07/ci-cd-with-terraform-and-github-actions-to-deploy-to-aws/
+In the expense-infra-dev project, subnets are created with `count` (fixed number). But **`for_each`** is more flexible when you need to define subnets by name or with custom CIDR blocks per availability zone.
 
-[^5]: https://github.com/shuaibiyy/awesome-tf
+### 1. Define a variable for subnet configuration
 
-[^6]: https://github.com/daws-78s/terraform-aws-eks
+```hcl
+# variables.tf
+variable "subnets" {
+  description = "Subnet configurations per AZ"
+  type = map(object({
+    cidr_block        = string
+    availability_zone = string
+    public            = bool
+  }))
+  default = {
+    "public-us-east-1a" = {
+      cidr_block        = "10.0.1.0/24"
+      availability_zone = "us-east-1a"
+      public            = true
+    }
+    "public-us-east-1b" = {
+      cidr_block        = "10.0.2.0/24"
+      availability_zone = "us-east-1b"
+      public            = true
+    }
+    "private-us-east-1a" = {
+      cidr_block        = "10.0.10.0/24"
+      availability_zone = "us-east-1a"
+      public            = false
+    }
+    "private-us-east-1b" = {
+      cidr_block        = "10.0.11.0/24"
+      availability_zone = "us-east-1b"
+      public            = false
+    }
+  }
+}
+```
 
-[^7]: https://www.youtube.com/watch?v=POM73N3Vgw0
+### 2. Use `for_each` to create subnets – referencing the VPC ID
 
-[^8]: https://dev.to/aws-builders/provisioning-aws-infrastructure-using-terraform-and-github-actions-40ei
+```hcl
+# main.tf (inside your vpc module or root)
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+  # ...
+}
 
-[^9]: https://github.com/dfds/infrastructure-modules
+resource "aws_subnet" "this" {
+  for_each = var.subnets
 
-[^10]: https://github.com/topics/iac-aws-terraform?l=hcl
+  vpc_id     = aws_vpc.main.id                # reference the VPC ID directly
+  cidr_block = each.value.cidr_block
+  availability_zone = each.value.availability_zone
 
-[^11]: https://www.youtube.com/watch?v=GaL8wMr48uI
+  map_public_ip_on_launch = each.value.public
 
-[^12]: https://www.oreilly.com/videos/terraform-in-aws/9780135378618/9780135378618-AGN1_01_02_03/
+  tags = {
+    Name = each.key
+    Tier = each.value.public ? "public" : "private"
+  }
+}
+```
 
-[^13]: https://www.gruntwork.io/blog/how-to-create-reusable-infrastructure-with-terraform-modules
+> **`each.key`** gives the map key (e.g., `"public-us-east-1a"`),  
+> **`each.value`** gives the object containing `cidr_block`, `az`, etc.
 
-[^14]: https://github.com/aws-ia/terraform-aws-eks-blueprints-addons/issues/114
+### 3. Output the VPC ID for use in other modules
 
-[^15]: https://www.infracost.io/docs/features/terraform_modules/
+```hcl
+# outputs.tf
+output "vpc_id" {
+  value = aws_vpc.main.id
+}
+```
 
-[^16]: https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest
+Then, in your root module, you can reference the VPC ID like this:
 
-[^17]: https://github.com/terraform-aws-modules/terraform-aws-pricing
+```hcl
+module "vpc" {
+  source = "./modules/vpc"
+  # inputs...
+}
 
-[^18]: https://blog.devops.dev/terraform-modules-build-a-scalable-aws-infrastructure-0f52465b0aa2
+# Use the vpc_id output elsewhere
+resource "aws_security_group" "example" {
+  vpc_id = module.vpc.vpc_id   # <-- referencing VPC ID from module
+  # ...
+}
+```
 
-[^19]: https://controlmonkey.io/resource/devops-terraform-aws/
+---
 
-[^20]: https://www.youtube.com/watch?v=7XcqRDVMv3o
+## Why `for_each` over `count`?
 
-[^21]: https://www.hashicorp.com/en/blog/a-guide-to-cloud-cost-optimization-with-hashicorp-terraform
+| Feature | `count` | `for_each` |
+|---------|---------|------------|
+| Index-based access | `count.index` | No index, uses map key |
+| Removing an item from the middle | Shifts indices → may destroy/recreate resources | Removes only that key → stable |
+| Readable names | Hard to give meaningful names (e.g., `aws_subnet.public[0]`) | Each resource is named with its key: `aws_subnet.this["public-us-east-1a"]` |
+| Works with modules | Yes | Yes (since Terraform 0.13) |
 
-[^22]: https://dev.to/aws-builders/terraform-modules-the-secret-sauce-to-scalable-infrastructure-10hi
+---
 
-[^23]: https://www.hashicorp.com/en/blog/terraform-modules-on-aws
+## Using `for_each` with a `module` block
 
-[^24]: https://developer.hashicorp.com/terraform/tutorials/aws/aws-rds
+If your VPC is itself a module, you can still use `for_each` to create multiple VPCs (e.g., dev/staging/prod):
 
-[^25]: https://www.linkedin.com/posts/sudheer-kumar-reddy-0532562a_amazon-web-services-aws-devops-joindevops-activity-7249444109629669377-HmRN
+```hcl
+variable "environments" {
+  type = map(string)
+  default = {
+    dev  = "10.0.0.0/16"
+    stg  = "10.1.0.0/16"
+    prod = "10.2.0.0/16"
+  }
+}
 
-[^26]: https://aws.plainenglish.io/mastering-terraform-modules-with-aws-build-reusable-infrastructure-for-dev-and-prod-environments-e54a318d52d0
+module "vpc" {
+  for_each = var.environments
+  source   = "./modules/vpc"
+  vpc_cidr = each.value
+  env_name = each.key
+}
 
-[^27]: https://www.firefly.ai/academy/finops-for-terraform-how-to-track-cloud-spend-before-it-hits-production
+# Reference VPC ID of the dev environment:
+# module.vpc["dev"].vpc_id
+```
 
-[^28]: https://oneuptime.com/blog/post/2026-02-12-terraform-aws-rds-module/view
+---
 
-[^29]: https://www.facebook.com/groups/terraformautomation/posts/1509612587124839/
+## Summary
 
+- **`for_each`** iterates over a map or set, giving you **stable resource addresses** and easier management.
+- The **VPC ID** is always available as an attribute of the `aws_vpc` resource or as an output from a VPC module.
+- You can reference it directly inside the same module (`aws_vpc.main.id`) or across modules (`module.vpc.vpc_id`).
+
+This pattern is widely used in production-grade Terraform to handle multiple environments, availability zones, or service tiers cleanly.
