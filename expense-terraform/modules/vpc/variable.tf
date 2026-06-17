@@ -1,6 +1,9 @@
 variable "vpc_cidr" {
   
 }
+variable "env" {
+  
+}
 
 variable "subnets" {
   default = {
