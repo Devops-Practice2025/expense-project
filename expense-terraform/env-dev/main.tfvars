@@ -37,3 +37,19 @@ private-db-1b = {
         is_public = false
 }
 }
+sg_rules = {
+  "allow_ssh" = {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    target_sg   = "bastion"
+  }
+  "allow_http" = {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    target_sg   = "frontend"
+  }
+}
