@@ -45,12 +45,3 @@ variable "sg_rules" {
   }))
   default = {} # Optional
 }
-variable "bucket_name" {
-  
-}
-variable "key_name" {
-  
-}
-variable "dynamodb_table" {
-  
-}
