@@ -1,9 +1,12 @@
 # Data source for AMI
-
 data "aws_ami" "rhel9" {
   most_recent = true
-  name_regex  = "Redhat-9-DevOps-Practice-.*"
-  owners      = ["self"]
+  owners      = ["self"] # Or your AWS account ID (e.g., "123456789012")
+
+  filter {
+    name   = "name"
+    values = ["Redhat-9-DevOps-Practice"] # Exact name
+  }
 }
 # Create EC2 instances dynamically from the map
 resource "aws_instance" "this" {
