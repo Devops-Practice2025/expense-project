@@ -1,18 +1,8 @@
-# Data source for AMI
-data "aws_ami" "rhel9" {
-  most_recent = true
-  owners      = ["self"] # Or your AWS account ID (e.g., "123456789012")
-
-  filter {
-    name   = "name"
-    values = ["Redhat-9-DevOps-Practice"] # Exact name
-  }
-}
 # Create EC2 instances dynamically from the map
 resource "aws_instance" "this" {
   for_each = var.instances
 
-  ami                    = data.aws_ami.rhel9.id
+  ami    = "ami-0220d79f3f480ecf5"
   instance_type          = each.value.instance_type
   subnet_id              = var.subnet_ids[each.value.subnet_key] # Lookup the ID from the map!
   vpc_security_group_ids = [aws_security_group.common.id] # Simplified SG for example
