@@ -44,7 +44,7 @@ subnets = {
 # ----- EC2 INSTANCES MAP -----
 instances = {
   "bastion" = {
-    instance_type = "t3.nano"
+    instance_type = "t3.micro"
     subnet_key    = "public-1a"
     user_data     = "bastion.sh"
   }
