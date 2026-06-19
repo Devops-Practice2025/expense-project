@@ -20,6 +20,3 @@ module "compute" {
   vpc_id      = module.vpc.vpc_id
 }
 
-output "instance_ip_map" {
-  value = { for k, v in module.compute : k => v.private_ip }
-}
