@@ -1,42 +1,66 @@
-env = "dev"
-vpc_cidr = "10.0.0.0/16"
+# terraform.tfvars
+environment = "dev"
+project     = "expense"
 
+# ----- VPC CONFIG MAP -----
+vpc_config = {
+  cidr_block = "10.0.0.0/16"
+}
+
+# ----- SUBNET MAP (Keyed by name) -----
 subnets = {
-    public-1a  = {
-        cidr = "10.0.1.0/24"
-        availability_zone = "us-east-1a"
-        is_public = true
-    }
-    public-1b = {
-        cidr = "10.0.2.0/24"
-        availability_zone = "us-east-1b"
-        is_public = true
+  "public-1a" = {
+    cidr_block        = "10.0.1.0/24"
+    availability_zone = "us-east-1a"
+    is_public         = true
+  }
+  "public-1b" = {
+    cidr_block        = "10.0.2.0/24"
+    availability_zone = "us-east-1b"
+    is_public         = true
+  }
+  "private-app-1a" = {
+    cidr_block        = "10.0.10.0/24"
+    availability_zone = "us-east-1a"
+    is_public         = false
+  }
+  "private-app-1b" = {
+    cidr_block        = "10.0.11.0/24"
+    availability_zone = "us-east-1b"
+    is_public         = false
+  }
+  "private-db-1a" = {
+    cidr_block        = "10.0.20.0/24"
+    availability_zone = "us-east-1a"
+    is_public         = false
+  }
+  "private-db-1b" = {
+    cidr_block        = "10.0.21.0/24"
+    availability_zone = "us-east-1b"
+    is_public         = false
+  }
 }
 
-private-app-1a  = {
-        cidr = "10.0.3.0/24"
-        availability_zone = "us-east-1a"
-        is_public = false
-    }
-    private-app-1b = {
-        cidr = "10.0.4.0/24"
-        availability_zone = "us-east-1b"
-        is_public = false
+# ----- EC2 INSTANCES MAP -----
+instances = {
+  "bastion" = {
+    instance_type = "t3.nano"
+    subnet_key    = "public-1a"
+    user_data     = "bastion.sh"
+  }
+  "frontend" = {
+    instance_type = "t3.micro"
+    subnet_key    = "public-1b"   # Or private, depending on your design
+    user_data     = "frontend.sh"
+  }
+  "backend" = {
+    instance_type = "t3.micro"
+    subnet_key    = "private-app-1a"
+    user_data     = "backend.sh"
+  }
 }
 
-
-    private-db-1b = {
-        cidr = "10.0.5.0/24"
-        availability_zone = "us-east-1b"
-        is_public = false
-}
-
-private-db-1b = {
-        cidr = "10.0.6.0/24"
-        availability_zone = "us-east-1b"
-        is_public = false
-}
-}
+# ----- SECURITY GROUP RULES MAP (Optional advanced) -----
 sg_rules = {
   "allow_ssh" = {
     from_port   = 22
