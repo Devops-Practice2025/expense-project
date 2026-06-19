@@ -19,3 +19,7 @@ module "compute" {
   subnet_ids  = module.vpc.subnet_ids # Passing the MAP of subnet IDs
   vpc_id      = module.vpc.vpc_id
 }
+
+output "instance_ip_map" {
+  value = { for k, v in module.compute : k => v.private_ip }
+}
