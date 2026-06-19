@@ -8,3 +8,6 @@ output "subnet_id_map" {
 }
 
 # Shows you the map of instances -> Private IPs
+output "instance_private_ips" {
+  value = { for k, v in module.compute.instances : k => v.private_ip }
+}
