@@ -43,3 +43,31 @@ resource "aws_route_table_association" "public" {
   subnet_id      = aws_subnet.this[each.key].id
   route_table_id = aws_route_table.public.id
 }
+
+#associate nat gateways and private route tables here if needed, but skipping for simplicity in this example.
+resource "aws_route_table" "private" {
+  count  = length([for v in var.subnets : v if !v.is_public]) > 0 ? 1 : 0
+  vpc_id = aws_vpc.main.id
+}
+resource "aws_route_table_association" "private" {
+  for_each = { for k, v in var.subnets : k => v if !v.is_public }
+
+  subnet_id      = aws_subnet.this[each.key].id
+  route_table_id = aws_route_table.private[0].id
+}
+resource "aws_route" "private_internet_access" {
+  count                   = length([for v in var.subnets : v if !v.is_public]) > 0 ? 1 : 0
+  route_table_id          = aws_route_table.private[0].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat.id
+}
+resource "aws_nat_gateway" "nat" {
+  count         = length([for v in var.subnets : v if v.is_public]) > 0 ? 1 : 0
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.this[values(var.subnets)[0].is_public ? keys(var.subnets)[0] : keys(var.subnets)[1]].id
+}
+resource "aws_eip" "nat" {
+  count      = length([for v in var.subnets : v if v.is_public]) > 0 ? 1 : 0
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.igw] # Ensure IGW is created first
+}
